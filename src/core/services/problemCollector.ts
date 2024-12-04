@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ProblemRecord, GroupedProblems } from '../types';
+import { ProblemRecord, GroupedProblems } from '../types/problems/ProblemTypes';
 
 export class ProblemCollector {
     async collectProblems(): Promise<ProblemRecord[]> {
@@ -15,10 +15,17 @@ export class ProblemCollector {
     }
 
     private convertDiagnosticToProblem(uri: vscode.Uri, diagnostic: vscode.Diagnostic): ProblemRecord {
+        // Normalize code to a string
+        const code = diagnostic.code 
+            ? typeof diagnostic.code === 'object' 
+                ? diagnostic.code.value.toString() 
+                : diagnostic.code.toString()
+            : 'No Code';
+
         return {
             filename: uri.fsPath,
             type: this.getSeverityString(diagnostic.severity),
-            code: diagnostic.code,
+            code: code,
             location: {
                 startLine: diagnostic.range.start.line + 1,
                 startColumn: diagnostic.range.start.character + 1,
@@ -41,18 +48,18 @@ export class ProblemCollector {
         };
     }
 
-    private getSeverityString(severity: vscode.DiagnosticSeverity): string {
+    private getSeverityString(severity: vscode.DiagnosticSeverity): 'error' | 'warning' | 'info' {
         switch (severity) {
             case vscode.DiagnosticSeverity.Error:
-                return 'Error';
+                return 'error';
             case vscode.DiagnosticSeverity.Warning:
-                return 'Warning';
+                return 'warning';
             case vscode.DiagnosticSeverity.Information:
-                return 'Information';
+                return 'info';
             case vscode.DiagnosticSeverity.Hint:
-                return 'Hint';
+                return 'info';
             default:
-                return 'Unknown';
+                return 'info';
         }
     }
 
@@ -62,9 +69,9 @@ export class ProblemCollector {
         byCode: GroupedProblems;
     } {
         return {
-            byType: this.groupBy(problems, p => this.getSeverityString(p.severity)),
+            byType: this.groupBy(problems, p => p.type),
             bySource: this.groupBy(problems, p => p.source || 'Unknown'),
-            byCode: this.groupBy(problems, p => p.code?.toString() || 'No Code')
+            byCode: this.groupBy(problems, p => p.code)
         };
     }
 

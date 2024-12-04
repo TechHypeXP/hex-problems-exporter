@@ -4,8 +4,8 @@ A powerful Visual Studio Code extension for exporting and analyzing diagnostic p
 
 ## Version 1.2.0
 
-**Release Date**: January 5, 2024
-**Timestamp**: 15:30:00 UTC
+**Release Date**: Descember 4, 2024
+**Timestamp**: 11:30:00 UTC
 
 ### What's New in 1.2.0
 - Enhanced architectural structure

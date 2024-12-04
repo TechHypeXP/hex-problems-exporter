@@ -1,5 +1,6 @@
 import * as ExcelJS from 'exceljs';
-import { IFormatter, ProblemRecord, GroupedProblems, FormatOptions } from '../types';
+import { IFormatter } from '../types';
+import { ProblemRecord, GroupedProblems, FormatterOptions } from '../types/problems/ProblemTypes';
 
 export class XlsxFormatter implements IFormatter {
     async format(
@@ -9,7 +10,7 @@ export class XlsxFormatter implements IFormatter {
             bySource: GroupedProblems;
             byCode: GroupedProblems;
         },
-        _options?: FormatOptions
+        _options?: FormatterOptions
     ): Promise<Buffer> {
         const workbook = new ExcelJS.Workbook();
 
@@ -51,8 +52,7 @@ export class XlsxFormatter implements IFormatter {
             { header: 'Start Column', key: 'startColumn' },
             { header: 'End Line', key: 'endLine' },
             { header: 'End Column', key: 'endColumn' },
-            { header: 'Message', key: 'message' },
-            { header: 'Related Information', key: 'relatedInfo' }
+            { header: 'Message', key: 'message' }
         ];
 
         problems.forEach(problem => {
@@ -65,72 +65,69 @@ export class XlsxFormatter implements IFormatter {
                 startColumn: problem.location.startColumn,
                 endLine: problem.location.endLine,
                 endColumn: problem.location.endColumn,
-                message: problem.message,
-                relatedInfo: problem.relatedInfo
-                    .map(info => `${info.message} (${info.filename}:${info.location.startLine}:${info.location.startColumn})`)
-                    .join('\n')
+                message: problem.message
             });
         });
-
-        sheet.getRow(1).font = { bold: true };
     }
 
-    private populateGroupedSheet(sheet: ExcelJS.Worksheet, groupedProblems: GroupedProblems, groupName: string): void {
+    private populateGroupedSheet(
+        sheet: ExcelJS.Worksheet, 
+        groupedProblems: GroupedProblems, 
+        groupName: string
+    ): void {
         sheet.columns = [
             { header: groupName, key: 'group' },
-            { header: 'Filename', key: 'filename' },
-            { header: 'Location', key: 'location' },
-            { header: 'Message', key: 'message' },
-            { header: 'Code', key: 'code' },
-            { header: 'Source', key: 'source' }
+            { header: 'Total Problems', key: 'totalProblems' },
+            { header: 'Files', key: 'files' }
         ];
 
         Object.entries(groupedProblems).forEach(([group, problems]) => {
-            problems.forEach(problem => {
-                sheet.addRow({
-                    group,
-                    filename: problem.filename,
-                    location: `${problem.location.startLine}:${problem.location.startColumn}`,
-                    message: problem.message,
-                    code: problem.code,
-                    source: problem.source
-                });
+            const uniqueFiles = new Set(problems.map(p => p.filename));
+            sheet.addRow({
+                group,
+                totalProblems: problems.length,
+                files: Array.from(uniqueFiles).join(', ')
             });
         });
-
-        sheet.getRow(1).font = { bold: true };
     }
 
     private populateSummarySheet(
-        sheet: ExcelJS.Worksheet,
-        problems: ProblemRecord[],
+        sheet: ExcelJS.Worksheet, 
+        problems: ProblemRecord[], 
         groupedProblems: {
             byType: GroupedProblems;
             bySource: GroupedProblems;
             byCode: GroupedProblems;
         }
     ): void {
-        const summaryData = [
-            ['Total Problems', problems.length],
-            [],
-            ['Problems by Type'],
-            ...Object.entries(groupedProblems.byType).map(([type, typeProblems]) => [type, typeProblems.length]),
-            [],
-            ['Problems by Source'],
-            ...Object.entries(groupedProblems.bySource).map(([source, sourceProblems]) => [source, sourceProblems.length]),
-            [],
-            ['Problems by Code'],
-            ...Object.entries(groupedProblems.byCode).map(([code, codeProblems]) => [code, codeProblems.length])
+        sheet.columns = [
+            { header: 'Metric', key: 'metric' },
+            { header: 'Value', key: 'value' }
         ];
 
-        summaryData.forEach((row, index) => {
-            const sheetRow = sheet.getRow(index + 1);
-            row.forEach((cell, colIndex) => {
-                sheetRow.getCell(colIndex + 1).value = cell;
-                if (index === 0 || index === 2 || index === 5 || index === 8) {
-                    sheetRow.getCell(colIndex + 1).font = { bold: true };
-                }
-            });
+        // Total number of problems
+        sheet.addRow({
+            metric: 'Total Problems',
+            value: problems.length
+        });
+
+        // Problems by Type
+        sheet.addRow({
+            metric: 'Problem Types',
+            value: Object.keys(groupedProblems.byType).join(', ')
+        });
+
+        // Problems by Source
+        sheet.addRow({
+            metric: 'Problem Sources',
+            value: Object.keys(groupedProblems.bySource).join(', ')
+        });
+
+        // Unique files with problems
+        const uniqueFiles = new Set(problems.map(p => p.filename));
+        sheet.addRow({
+            metric: 'Files with Problems',
+            value: uniqueFiles.size
         });
     }
 }
