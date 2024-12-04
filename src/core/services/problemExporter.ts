@@ -5,127 +5,124 @@ import { formatJson } from '../formatters/jsonFormatter';
 import { formatCsv } from '../formatters/csvFormatter';
 import { formatXlsx } from '../formatters/xlsxFormatter';
 
+interface ExtendedDiagnostic extends vscode.Diagnostic {
+    uri: vscode.Uri;
+}
+
 export class ProblemExporter {
+    private formatters = {
+        'markdown': formatMarkdown,
+        'json': formatJson,
+        'csv': formatCsv,
+        'xlsx': formatXlsx
+    };
+
+    constructor(private format: OutputFormat) {}
+
     async exportProblems(
-        format: OutputFormat,
         customOutputPath: string,
         progress: vscode.Progress<{ increment?: number; message?: string }>,
         token: vscode.CancellationToken
     ): Promise<void> {
-        progress.report({ increment: 0, message: 'Collecting problems...' });
-        const problems = await this.collectProblems();
+        progress.report({ increment: 25, message: 'Collecting problems...' });
 
+        const problems = await this.collectProblems();
         if (token.isCancellationRequested) {
             return;
         }
 
-        if (problems.length === 0) {
-            vscode.window.showInformationMessage('No problems found in workspace');
-            return;
-        }
-
         progress.report({ increment: 50, message: 'Formatting output...' });
-        const output = await this.formatOutput(problems, format);
+        const groupedProblems = {
+            byType: this.groupBy(problems, 'type'),
+            bySource: this.groupBy(problems, 'source'),
+            byCode: this.groupBy(problems, 'code')
+        };
+
+        const output = await this.formatters[this.format].format(problems, groupedProblems);
 
         if (token.isCancellationRequested) {
             return;
         }
 
         progress.report({ increment: 75, message: 'Saving report...' });
-        await this.saveReport(output, format, customOutputPath);
+        await this.saveReport(output, customOutputPath);
 
         vscode.window.showInformationMessage('Problems report generated successfully');
     }
 
     private async collectProblems(): Promise<ProblemRecord[]> {
-        const problems: ProblemRecord[] = [];
-        
-        vscode.languages.getDiagnostics().forEach(([uri, diagnostics]) => {
-            diagnostics.forEach(diagnostic => {
-                problems.push({
-                    filename: uri.fsPath,
-                    type: this.getSeverityString(diagnostic.severity),
-                    code: diagnostic.code,
-                    location: {
-                        startLine: diagnostic.range.start.line + 1,
-                        startColumn: diagnostic.range.start.character + 1,
-                        endLine: diagnostic.range.end.line + 1,
-                        endColumn: diagnostic.range.end.character + 1
-                    },
-                    message: diagnostic.message,
-                    source: diagnostic.source || '',
-                    severity: diagnostic.severity,
-                    relatedInfo: diagnostic.relatedInformation?.map(info => ({
-                        location: {
-                            startLine: info.location.range.start.line + 1,
-                            startColumn: info.location.range.start.character + 1,
-                            endLine: info.location.range.end.line + 1,
-                            endColumn: info.location.range.end.character + 1
-                        },
-                        message: info.message,
-                        filename: info.location.uri.fsPath
-                    })) || []
-                });
-            });
-        });
-
-        return problems;
+        const diagnostics = this.getDiagnostics();
+        return diagnostics.map(diagnostic => ({
+            filename: diagnostic.uri.fsPath,
+            type: this.getSeverityString(diagnostic.severity),
+            code: diagnostic.code?.toString() || '',
+            location: {
+                startLine: diagnostic.range.start.line,
+                startColumn: diagnostic.range.start.character,
+                endLine: diagnostic.range.end.line,
+                endColumn: diagnostic.range.end.character
+            },
+            message: diagnostic.message,
+            source: diagnostic.source || 'unknown',
+            severity: diagnostic.severity || 0,
+            relatedInfo: diagnostic.relatedInformation?.map(info => ({
+                location: {
+                    startLine: info.location.range.start.line,
+                    startColumn: info.location.range.start.character,
+                    endLine: info.location.range.end.line,
+                    endColumn: info.location.range.end.character
+                },
+                message: info.message,
+                filename: info.location.uri.fsPath
+            })) || []
+        }));
     }
 
-    private async formatOutput(problems: ProblemRecord[], format: OutputFormat): Promise<string> {
-        const groupedByType = this.groupBy(problems, p => this.getSeverityString(p.severity));
-        const groupedBySource = this.groupBy(problems, p => p.source || 'Unknown');
-        const groupedByCode = this.groupBy(problems, p => p.code?.toString() || 'No Code');
+    private getDiagnostics(): ExtendedDiagnostic[] {
+        const diagnostics: ExtendedDiagnostic[] = [];
+        for (const [uri, diags] of vscode.languages.getDiagnostics()) {
+            diags.forEach(diagnostic => {
+                const extendedDiagnostic = diagnostic as ExtendedDiagnostic;
+                extendedDiagnostic.uri = uri;
+                diagnostics.push(extendedDiagnostic);
+            });
+        }
+        return diagnostics;
+    }
 
-        switch (format) {
-            case 'markdown':
-                return formatMarkdown(problems, groupedByType, groupedBySource, groupedByCode);
-            case 'json':
-                return formatJson(problems, groupedByType, groupedBySource, groupedByCode);
-            case 'csv':
-                return formatCsv(problems);
+    private getSeverityString(severity?: vscode.DiagnosticSeverity): 'error' | 'warning' | 'info' {
+        switch (severity) {
+            case vscode.DiagnosticSeverity.Error:
+                return 'error';
+            case vscode.DiagnosticSeverity.Warning:
+                return 'warning';
             default:
-                throw new Error(`Unsupported output format: ${format}`);
+                return 'info';
         }
     }
 
-    private async saveReport(content: string, format: OutputFormat, customOutputPath: string): Promise<void> {
+    private groupBy(problems: ProblemRecord[], key: keyof ProblemRecord): GroupedProblems {
+        return problems.reduce((acc, problem) => {
+            const value = problem[key]?.toString() || 'unknown';
+            acc[value] = acc[value] || [];
+            acc[value].push(problem);
+            return acc;
+        }, {} as GroupedProblems);
+    }
+
+    private async saveReport(content: string | Buffer, customOutputPath: string): Promise<void> {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         if (!workspaceFolder) {
             throw new Error('No workspace folder found');
         }
 
         const outputPath = customOutputPath || workspaceFolder.uri.fsPath;
-        const fileName = `problems-report.${format}`;
+        const fileName = `problems-report.${this.format}`;
         const fullPath = vscode.Uri.file(vscode.Uri.joinPath(vscode.Uri.file(outputPath), fileName).fsPath);
 
-        await vscode.workspace.fs.writeFile(fullPath, Buffer.from(content));
+        await vscode.workspace.fs.writeFile(fullPath, Buffer.from(content.toString()));
         
         const doc = await vscode.workspace.openTextDocument(fullPath);
         await vscode.window.showTextDocument(doc);
-    }
-
-    private getSeverityString(severity: vscode.DiagnosticSeverity): string {
-        switch (severity) {
-            case vscode.DiagnosticSeverity.Error:
-                return 'Error';
-            case vscode.DiagnosticSeverity.Warning:
-                return 'Warning';
-            case vscode.DiagnosticSeverity.Information:
-                return 'Information';
-            case vscode.DiagnosticSeverity.Hint:
-                return 'Hint';
-            default:
-                return 'Unknown';
-        }
-    }
-
-    private groupBy<T>(array: T[], keyFn: (item: T) => string): GroupedProblems {
-        return array.reduce((result, item) => {
-            const key = keyFn(item);
-            result[key] = result[key] || [];
-            result[key].push(item as ProblemRecord);
-            return result;
-        }, {} as GroupedProblems);
     }
 }

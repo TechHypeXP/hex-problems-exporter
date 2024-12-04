@@ -1,15 +1,12 @@
 export interface ProblemLocation {
-  line: number;
-  column: number;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
 }
 
 export interface RelatedProblemInfo {
-  location: {
-    startLine: number;
-    startColumn: number;
-    endLine: number;
-    endColumn: number;
-  };
+  location: ProblemLocation;
   message: string;
   filename: string;
 }
@@ -18,12 +15,7 @@ export interface ProblemRecord {
   filename: string;
   type: 'error' | 'warning' | 'info';
   code: string;
-  location: {
-    startLine: number;
-    startColumn: number;
-    endLine: number;
-    endColumn: number;
-  };
+  location: ProblemLocation;
   message: string;
   source: string;
   severity: number;

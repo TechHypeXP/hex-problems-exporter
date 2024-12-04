@@ -51,7 +51,9 @@ function formatProblem(problem: ProblemRecord, report: string): void {
         report += '- Related Information:\n';
         problem.relatedInfo.forEach(info => {
             report += `  - ${info.message}\n`;
-            report += `    at \`${info.filename}\` Line ${info.location.startLine}, Column ${info.location.startColumn}\n`;
+            report += `    at \
+      \
+      \`${info.filename}\` Line ${info.location.startLine}, Column ${info.location.startColumn}\n`;
         });
     }
 

@@ -2,21 +2,14 @@
  * Abstract base class for problem formatters
  * @abstract
  * @class BaseFormatter
- * @implements {IFormatter}
  */
-import { IFormatter } from '../interfaces/IFormatter';
-import { 
-    ProblemRecord, 
-    GroupedProblems, 
-    FormatterOptions 
-} from '../../types';
+import { ProblemRecord, GroupedProblems } from '../../types/problems/ProblemTypes';
 
-export abstract class BaseFormatter implements IFormatter {
+export abstract class BaseFormatter {
     /**
      * Abstract method to format problems
      * @param problems Raw problem records
-     * @param groupedProblems Problems grouped by various criteria
-     * @param options Optional formatting options
+     * @param groupedProblems Grouped problems
      * @returns Promise resolving to a formatted buffer
      */
     abstract format(
@@ -25,15 +18,24 @@ export abstract class BaseFormatter implements IFormatter {
             byType: GroupedProblems;
             bySource: GroupedProblems;
             byCode: GroupedProblems;
-        },
-        options?: FormatterOptions
-    ): Promise<Buffer>;
+        }
+    ): Promise<string | Buffer>;
 
     /**
-     * Get the file extension for the current formatter
-     * @returns File extension string
+     * Abstract method to get the file extension
+     * @returns File extension
      */
     abstract getFileExtension(): string;
+
+    /**
+     * Validate problems
+     * @param problems Raw problem records
+     */
+    protected validateProblems(problems: ProblemRecord[]): void {
+        if (!Array.isArray(problems)) {
+            throw new Error('Problems must be an array');
+        }
+    }
 
     /**
      * Utility method to group problems
@@ -41,44 +43,12 @@ export abstract class BaseFormatter implements IFormatter {
      * @param groupBy Criteria to group problems
      * @returns Grouped problems
      */
-    protected groupProblems(
-        problems: ProblemRecord[], 
-        groupBy: 'type' | 'source' | 'code'
-    ): ProblemRecord[] {
-        const grouped: { [key: string]: ProblemRecord[] } = {};
-        
-        problems.forEach(problem => {
-            const key = this.getGroupKey(problem, groupBy);
-            if (!grouped[key]) {
-                grouped[key] = [];
-            }
-            grouped[key].push(problem);
-        });
-
-        return Object.entries(grouped)
-            .map(([groupName, groupProblems]) => ({
-                groupName,
-                problems: groupProblems
-            }));
-    }
-
-    /**
-     * Get the group key for a problem
-     * @param problem Problem record
-     * @param groupBy Grouping criteria
-     * @returns Group key string
-     */
-    private getGroupKey(
-        problem: ProblemRecord, 
-        groupBy: 'type' | 'source' | 'code'
-    ): string {
-        switch (groupBy) {
-            case 'type':
-                return problem.type || 'Unknown';
-            case 'source':
-                return problem.source || 'Unknown';
-            case 'code':
-                return problem.code?.toString() || 'No Code';
-        }
+    protected groupProblems(problems: ProblemRecord[], groupBy: keyof ProblemRecord): GroupedProblems {
+        return problems.reduce((acc, problem) => {
+            const key = problem[groupBy]?.toString() || 'unknown';
+            acc[key] = acc[key] || [];
+            acc[key].push(problem);
+            return acc;
+        }, {} as GroupedProblems);
     }
 }

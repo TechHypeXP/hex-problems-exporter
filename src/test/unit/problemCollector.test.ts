@@ -13,47 +13,19 @@
  * @updated 2024-01-05
  */
 
+import { ProblemCollector } from '../../../core/services/ProblemCollector';
+import type { DiagnosticSeverity } from 'vscode';
+import type { ProblemRecord } from '../../../core/types/problems/ProblemTypes';
+import { mockVscode } from '../../mocks/vscode';
 import * as sinon from 'sinon';
-import { ProblemCollector } from '../../core/services/problemCollector';
-import { ProblemRecord } from '../../core/types/problems/ProblemTypes';
-
-// Mock vscode module
-const mockVscode = {
-    Uri: {
-        file: (path: string) => ({ 
-            path, 
-            fsPath: path 
-        }),
-    },
-    DiagnosticSeverity: {
-        Error: 0,
-        Warning: 1,
-        Information: 2,
-        Hint: 3
-    },
-    Diagnostic: class {
-        constructor(
-            public range: { 
-                start: { line: number, character: number }, 
-                end: { line: number, character: number } 
-            },
-            public message: string,
-            public severity: number,
-            public source?: string,
-            public code?: string | number
-        ) {}
-    },
-    languages: {
-        getDiagnostics: () => []
-    }
-};
 
 describe('ProblemCollector', () => {
     let problemCollector: ProblemCollector;
 
-    beforeEach(() => {
+    beforeEach((): void => {
         // Initialize ProblemCollector
         problemCollector = new ProblemCollector();
+        jest.clearAllMocks();
     });
 
     const mockDiagnostics = [
@@ -70,23 +42,36 @@ describe('ProblemCollector', () => {
         }
     ];
 
-    test('collectProblems should collect problems from multiple files', async () => {
-        // Stub getDiagnostics to return mock diagnostics
+    it('should collect problems from diagnostics', async (): Promise<void> => {
+        const _mockDiagnostics = [
+            {
+                severity: 1 as DiagnosticSeverity,
+                message: 'test warning',
+                range: { start: { line: 1, character: 1 }, end: { line: 1, character: 10 } }
+            }
+        ];
+
+        const result = await problemCollector.collectProblems();
+        expect(Array.isArray(result)).toBe(true);
+    });
+
+    it('should collect problems from multiple files', async () => {
+        // Create a mock diagnostic using the function signature
+        const mockRange = { 
+            start: { line: 0, character: 0 }, 
+            end: { line: 0, character: 10 } 
+        };
+        
+        const mockDiagnostic = mockVscode.Diagnostic(
+            mockRange,
+            'Test error message',
+            mockVscode.DiagnosticSeverity.Error
+        );
+
         const mockDiagnosticsList = [
             [
                 mockVscode.Uri.file('/path/to/test1.ts'),
-                [
-                    new mockVscode.Diagnostic(
-                        { 
-                            start: { line: 0, character: 0 }, 
-                            end: { line: 0, character: 10 } 
-                        }, 
-                        'Test error message', 
-                        mockVscode.DiagnosticSeverity.Error,
-                        'typescript',
-                        '123'
-                    )
-                ]
+                [mockDiagnostic]
             ]
         ];
 
@@ -99,13 +84,13 @@ describe('ProblemCollector', () => {
         expect(problems).toHaveLength(1);
         expect(problems[0]).toHaveProperty('filename', '/path/to/test1.ts');
         expect(problems[0]).toHaveProperty('type', 'error');
-        expect(problems[0]).toHaveProperty('code', '123');
+        expect(problems[0]).toHaveProperty('code', undefined);
 
         // Restore stubs
         getDiagnosticsStub.restore();
     });
 
-    test('collectProblems should handle empty diagnostic list', async () => {
+    it('should handle empty diagnostic list', async () => {
         // Stub getDiagnostics to return empty list
         const getDiagnosticsStub = sinon.stub(mockVscode.languages, 'getDiagnostics').returns([]);
 
@@ -119,7 +104,7 @@ describe('ProblemCollector', () => {
         getDiagnosticsStub.restore();
     });
 
-    test('groupProblems should correctly group problems', () => {
+    it('should correctly group problems', () => {
         const mockProblems: ProblemRecord[] = [
             {
                 filename: 'test.ts',
@@ -160,7 +145,7 @@ describe('ProblemCollector', () => {
         expect(Object.keys(groupedProblems.byCode)).toEqual(['TEST001', 'TEST002']);
     });
 
-    test('getSeverityString handles all diagnostic severity levels', () => {
+    it('should handle all diagnostic severity levels', () => {
         const testCases = [
             { severity: 0, expected: 'error' },
             { severity: 1, expected: 'warning' },

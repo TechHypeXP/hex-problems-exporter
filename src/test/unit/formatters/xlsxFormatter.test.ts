@@ -28,17 +28,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as ExcelJS from 'exceljs';
 import { XlsxFormatter } from '../../../core/formatters/xlsxFormatter';
-import { ProblemRecord, GroupedProblems } from '../../../core/types/problems/ProblemTypes';
-
-// Mock vscode module
-const mockVscode = {
-    DiagnosticSeverity: {
-        Error: 0,
-        Warning: 1,
-        Information: 2,
-        Hint: 3
-    }
-};
+import type { ProblemRecord, GroupedProblems } from '../../../core/types/problems/ProblemTypes';
 
 describe('XlsxFormatter', () => {
     let xlsxFormatter: XlsxFormatter;
@@ -56,37 +46,35 @@ describe('XlsxFormatter', () => {
         }
     });
 
-    const mockProblems: ProblemRecord[] = [
-        {
-            filename: 'test.ts',
-            type: 'error',
-            code: 'TEST001',
-            location: {
-                startLine: 1,
-                startColumn: 1,
-                endLine: 2,
-                endColumn: 10
-            },
-            message: 'Test error',
-            source: 'test-source',
-            severity: 0,
-            relatedInfo: []
-        }
-    ];
+    const testProblems: ProblemRecord[] = [{
+        filename: 'test.ts',
+        type: 'error',
+        code: 'TS1234',
+        location: {
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 10
+        },
+        message: 'Test error',
+        source: 'typescript',
+        severity: 1,
+        relatedInfo: []
+    }];
 
     const mockGroupedProblems: {
         byType: GroupedProblems;
         bySource: GroupedProblems;
         byCode: GroupedProblems;
     } = {
-        byType: { 'error': mockProblems },
-        bySource: { 'test-source': mockProblems },
-        byCode: { 'TEST001': mockProblems }
+        byType: { 'error': testProblems },
+        bySource: { 'typescript': testProblems },
+        byCode: { 'TS1234': testProblems }
     };
 
-    test('format should return a buffer', async () => {
-        const buffer = await xlsxFormatter?.format(mockProblems, mockGroupedProblems);
-        expect(buffer).toBeInstanceOf(Buffer);
+    it('should format problems to XLSX', async (): Promise<void> => {
+        const result = await xlsxFormatter.format(testProblems, mockGroupedProblems);
+        expect(result).toBeInstanceOf(Buffer);
     });
 
     test('getFileExtension should return xlsx', () => {
@@ -104,7 +92,7 @@ describe('XlsxFormatter', () => {
     });
 
     test('should create an XLSX workbook with multiple sheets', async () => {
-        const buffer = await xlsxFormatter?.format(mockProblems, mockGroupedProblems);
+        const buffer = await xlsxFormatter?.format(testProblems, mockGroupedProblems);
         
         if (!buffer) {
             throw new Error('Buffer should not be undefined');
@@ -118,7 +106,7 @@ describe('XlsxFormatter', () => {
     });
 
     test('should format problem data correctly in All Problems sheet', async () => {
-        const buffer = await xlsxFormatter?.format(mockProblems, mockGroupedProblems);
+        const buffer = await xlsxFormatter?.format(testProblems, mockGroupedProblems);
         
         if (!buffer) {
             throw new Error('Buffer should not be undefined');
@@ -135,7 +123,7 @@ describe('XlsxFormatter', () => {
         }
 
         expect(rows?.[0].getCell(1).value).toStrictEqual('error');
-        expect(rows?.[0].getCell(2).value).toStrictEqual('TEST001');
-        expect(rows?.[0].getCell(3).value).toStrictEqual('test-source');
+        expect(rows?.[0].getCell(2).value).toStrictEqual('TS1234');
+        expect(rows?.[0].getCell(3).value).toStrictEqual('typescript');
     });
 });
