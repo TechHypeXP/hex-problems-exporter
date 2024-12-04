@@ -1,0 +1,82 @@
+{
+  "name": "hex-problems-exporter",
+  "displayName": "Hex Problems Exporter",
+  "description": "Export and analyze VS Code problems with flexible output formats",
+  "version": "1.2.0",
+  "publisher": "hex-problems-exporter-team",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "problems",
+    "export",
+    "diagnostic",
+    "report",
+    "analysis"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [{
+      "command": "hexProblemsExporter.export",
+      "title": "Export Problems Report"
+    }],
+    "menus": {
+      "editor/title": [{
+        "command": "hexProblemsExporter.export",
+        "group": "navigation"
+      }],
+      "view/title": [{
+        "command": "hexProblemsExporter.export",
+        "when": "view == problems",
+        "group": "navigation"
+      }]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "lint:fix": "eslint src --ext ts --fix",
+    "test": "node ./out/test/runTest.js",
+    "test:unit": "mocha -r ts-node/register 'src/test/unit/**/*.test.ts'",
+    "test:integration": "mocha -r ts-node/register 'src/test/integration/**/*.test.ts'",
+    "coverage": "nyc npm run test:unit",
+    "prepare": "husky install",
+    "precommit": "npm run lint && npm run test:unit"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.10.5",
+    "@types/sinon": "^17.0.1",
+    "@types/vscode": "^1.60.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "chai": "^5.0.0",
+    "eslint": "^8.56.0",
+    "glob": "^10.3.10",
+    "husky": "^8.0.3",
+    "mocha": "^10.2.0",
+    "nyc": "^15.1.0",
+    "sinon": "^17.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "vscode-test": "^1.6.1"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hex-problems-exporter/vscode-extension"
+  },
+  "homepage": "https://github.com/hex-problems-exporter/vscode-extension/README.md",
+  "bugs": {
+    "url": "https://github.com/hex-problems-exporter/vscode-extension/issues"
+  },
+  "license": "MIT"
+}
