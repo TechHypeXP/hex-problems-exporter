@@ -68,3 +68,6 @@ test-results/
 
 # VS Code extension specific
 *.vsix
+
+*xFormatter test with new mock data and buffer expectations*
+*xFormatter test with new mock data and buffer expectations*
