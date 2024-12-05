@@ -17,7 +17,8 @@
     "test:unit": "jest --config jest.config.js",
     "test:integration": "node ./out/test/runTest.js",
     "clean": "rimraf out/",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "dev": "tsc --noEmit false --skipLibCheck true && vsce package"
   },
   "dependencies": {
     "exceljs": "^4.3.0",

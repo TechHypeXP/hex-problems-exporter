@@ -18,7 +18,23 @@ declare global {
 // Configure Chai plugins
 use(sinonChai);
 use(chaiAsPromised);
-(global as typeof globalThis).expect = expect;
+
+// Extend global declarations
+declare global {
+    var expect: typeof expect;
+}
+
+// Safe assignment to global scope
+(global as any).expect = expect;
+
+// Type augmentation for Chai
+declare global {
+  namespace Chai {
+    interface Assertion {
+      extend(matchers: Record<string, unknown>): void;
+    }
+  }
+}
 
 export interface MockOutputChannel extends OutputChannel {
   append: Mock<(value: string) => void>;

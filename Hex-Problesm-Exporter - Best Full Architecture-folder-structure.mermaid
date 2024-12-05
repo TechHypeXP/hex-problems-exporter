@@ -1,0 +1,38 @@
+graph TD
+    src[src/]
+    app[application/]
+    dom[domain/]
+    inf[infrastructure/]
+    test[test/]
+    shared[shared/]
+
+    src --> app
+    src --> dom
+    src --> inf
+    src --> test
+    src --> shared
+
+    app --> app_cmd[commands/]
+    app --> app_svc[services/]
+    app --> app_ports[ports/]
+
+    dom --> dom_mod[models/]
+    dom --> dom_evt[events/]
+    dom --> dom_repo[repositories/]
+
+    inf --> inf_vs[vscode/]
+    inf --> inf_fmt[formatters/]
+    inf --> inf_per[persistence/]
+
+    inf_vs --> inf_vs_cmd[commands/]
+    inf_vs --> inf_vs_pro[providers/]
+
+    test --> test_fix[fixtures/]
+    test --> test_int[integration/]
+    test --> test_unit[unit/]
+    test --> test_set[setup/]
+
+    shared --> shared_typ[types/]
+    shared --> shared_err[errors/]
+    shared --> shared_log[logging/]
+    shared --> shared_cfg[config/]
