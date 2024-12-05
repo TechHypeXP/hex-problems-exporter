@@ -1,16 +1,11 @@
-import { DiagnosticService } from '../services';
-import { appConfig } from '../../shared/config';
+import { ExportOptions } from '../../shared/types';
+import { DiagnosticService } from '../services/diagnostic.service';
 
-export interface ExportDiagnosticsCommand {
-  outputPath: string;
-  format?: 'csv' | 'excel';
-}
+export class ExportDiagnosticsCommand {
+    constructor(private readonly diagnosticService: DiagnosticService) {}
 
-export class ExportDiagnosticsHandler {
-  constructor(private readonly diagnosticService: DiagnosticService) {}
-
-  async execute(command: ExportDiagnosticsCommand): Promise<void> {
-    const format = command.format ?? appConfig.diagnostics.defaultFormat;
-    await this.diagnosticService.exportDiagnostics(command.outputPath, format);
-  }
+    async execute(options: ExportOptions): Promise<void> {
+        const diagnostics = await this.diagnosticService.getDiagnostics();
+        await this.diagnosticService.exportDiagnostics(options);
+    }
 }

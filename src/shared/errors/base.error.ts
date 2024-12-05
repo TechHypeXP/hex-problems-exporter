@@ -1,27 +1,24 @@
-import { ErrorCode } from '../types';
+import { ErrorCode } from '../types/error.types';
 
-export abstract class BaseError extends Error {
+export class BaseError extends Error {
     constructor(
-        message: string,
         public readonly code: ErrorCode,
+        message: string,
         public readonly details?: Record<string, unknown>
     ) {
         super(message);
+        this.name = 'BaseError';
         
         // Maintain proper prototype chain
         Object.setPrototypeOf(this, BaseError.prototype);
-        
-        // Capture stack trace
-        Error.captureStackTrace(this, this.constructor);
     }
 
-    toJSON(): Record<string, unknown> {
+    toJSON() {
         return {
-            name: this.constructor.name,
-            message: this.message,
+            name: this.name,
             code: this.code,
-            details: this.details,
-            stack: this.stack
+            message: this.message,
+            details: this.details
         };
     }
 }

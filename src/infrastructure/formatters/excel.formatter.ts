@@ -1,60 +1,47 @@
+import * as ExcelJS from 'exceljs';
 import { Diagnostic } from '../../shared/types/diagnostic.types';
-import { FormatterPort } from '../../domain/ports/formatter.port';
 import { DiagnosticSeverity } from 'vscode';
-import { Workbook, Worksheet } from 'exceljs';
 
-export class ExcelFormatter implements FormatterPort {
-    private readonly headers = ['File', 'Line', 'Column', 'Severity', 'Message', 'Source', 'Code'];
+export class ExcelFormatter {
+    async format(diagnostics: Diagnostic[], outputPath: string): Promise<void> {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Problems');
 
-    async format(diagnostics: Diagnostic[]): Promise<Buffer> {
-        const workbook = new Workbook();
-        const worksheet = workbook.addWorksheet('Diagnostics');
+        // Define columns
+        worksheet.columns = [
+            { header: 'ID', key: 'id', width: 15 },
+            { header: 'Message', key: 'message', width: 50 },
+            { header: 'Severity', key: 'severity', width: 15 },
+            { header: 'Line', key: 'line', width: 10 },
+            { header: 'Character', key: 'character', width: 10 },
+            { header: 'Source', key: 'source', width: 20 },
+            { header: 'Code', key: 'code', width: 15 }
+        ];
 
-        // Set up headers
-        worksheet.columns = this.headers.map(header => ({
-            header,
-            key: header.toLowerCase(),
-            width: 15
-        }));
+        // Add data
+        diagnostics.forEach(diagnostic => {
+            worksheet.addRow({
+                id: diagnostic.id,
+                message: diagnostic.message,
+                severity: this.getSeverityText(diagnostic.severity),
+                line: diagnostic.range.start.line + 1,
+                character: diagnostic.range.start.character + 1,
+                source: diagnostic.source,
+                code: diagnostic.code?.toString() || ''
+            });
+        });
 
-        // Add data rows
-        const rows = diagnostics.map(d => ({
-            file: d.range.start.file,
-            line: d.range.start.line,
-            column: d.range.start.column,
-            severity: DiagnosticSeverity[d.severity],
-            message: d.message,
-            source: d.source || '',
-            code: d.code || ''
-        }));
-
-        worksheet.addRows(rows);
-
-        // Style the worksheet
-        this.styleWorksheet(worksheet);
-
-        // Return as buffer
-        return workbook.xlsx.writeBuffer() as Promise<Buffer>;
-    }
-
-    private styleWorksheet(worksheet: Worksheet): void {
         // Style header row
         const headerRow = worksheet.getRow(1);
         headerRow.font = { bold: true };
         headerRow.fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: 'FF4F81BD' }
+            fgColor: { argb: 'FF4B9CD3' }
         };
         headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
-        // Auto-filter
-        worksheet.autoFilter = {
-            from: { row: 1, column: 1 },
-            to: { row: 1, column: this.headers.length }
-        };
-
-        // Freeze top row
+        // Freeze header row
         worksheet.views = [{
             state: 'frozen',
             xSplit: 0,
@@ -63,16 +50,28 @@ export class ExcelFormatter implements FormatterPort {
             activeCell: 'A2'
         }];
 
-        // Add borders to all cells
-        worksheet.eachRow((row, rowNumber) => {
-            row.eachCell(cell => {
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-            });
-        });
+        // Auto-filter
+        worksheet.autoFilter = {
+            from: 'A1',
+            to: `G${diagnostics.length + 1}`
+        };
+
+        // Save workbook
+        await workbook.xlsx.writeFile(outputPath);
+    }
+
+    private getSeverityText(severity: DiagnosticSeverity): string {
+        switch (severity) {
+            case DiagnosticSeverity.Error:
+                return 'Error';
+            case DiagnosticSeverity.Warning:
+                return 'Warning';
+            case DiagnosticSeverity.Information:
+                return 'Information';
+            case DiagnosticSeverity.Hint:
+                return 'Hint';
+            default:
+                return 'Unknown';
+        }
     }
 }

@@ -1,32 +1,16 @@
-import { DiagnosticRepository } from '../../domain/repositories/diagnostic.repository';
-import { Diagnostic, ExportOptions } from '../../shared/types/diagnostic.types';
-import { UIPort } from '../ports/ui.port';
+import { Diagnostic } from '../../shared/types/diagnostic.types';
+import { ExportOptions } from '../../shared/types';
+import { IDiagnosticRepository } from '../../domain/repositories/diagnostic.repository';
 
 export class DiagnosticService {
-    constructor(
-        private readonly repository: DiagnosticRepository,
-        private readonly ui: UIPort
-    ) {}
+    constructor(private repository: IDiagnosticRepository) {}
 
-    async exportDiagnostics(diagnostics: Diagnostic[], options: ExportOptions): Promise<void> {
-        await this.ui.withProgress('Exporting diagnostics...', async (progress) => {
-            progress('Preparing export...');
-            await this.repository.exportDiagnostics(diagnostics, options);
-            progress('Export complete');
-        });
-        await this.ui.showInfo(`Successfully exported ${diagnostics.length} diagnostics to ${options.outputPath}`);
+    async exportDiagnostics(options: ExportOptions): Promise<void> {
+        const diagnostics = await this.getDiagnostics();
+        await this.repository.export(diagnostics, options);
     }
 
-    async getAllDiagnostics(): Promise<Diagnostic[]> {
-        try {
-            return await this.repository.getAllDiagnostics();
-        } catch (error) {
-            await this.ui.showError('Failed to retrieve diagnostics');
-            throw error;
-        }
-    }
-
-    async getDiagnosticsForFile(filePath: string): Promise<Diagnostic[]> {
-        return this.repository.getDiagnosticsForFile(filePath);
+    async getDiagnostics(): Promise<Diagnostic[]> {
+        return this.repository.getAll();
     }
 }

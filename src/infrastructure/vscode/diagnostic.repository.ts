@@ -1,73 +1,67 @@
 import * as vscode from 'vscode';
-import { DiagnosticRepository } from '../../domain/repositories';
-import { DiagnosticModel, Diagnostic } from '../../domain/models';
-import { DiagnosticError } from '../../shared/errors';
+import { IDiagnosticRepository } from '../../domain/repositories/diagnostic.repository';
+import { Diagnostic } from '../../shared/types/diagnostic.types';
+import { ExportOptions } from '../../shared/types';
+import { DiagnosticError } from '../../shared/errors/diagnostic.error';
+import { ErrorCode } from '../../shared/types/error.types';
 
-export class VSCodeDiagnosticRepository implements DiagnosticRepository {
-  private readonly diagnosticCollection: vscode.DiagnosticCollection;
+export class VSCodeDiagnosticRepository implements IDiagnosticRepository {
+    constructor(private collection: vscode.DiagnosticCollection) {}
 
-  constructor() {
-    this.diagnosticCollection = vscode.languages.createDiagnosticCollection('hex-problems');
-  }
-
-  async getAllDiagnostics(): Promise<DiagnosticModel[]> {
-    const diagnostics: DiagnosticModel[] = [];
-    
-    this.diagnosticCollection.forEach((uri, vscodeDiagnostics) => {
-      vscodeDiagnostics.forEach(diagnostic => {
-        diagnostics.push(new Diagnostic(
-          diagnostic.message,
-          diagnostic.severity,
-          {
-            start: {
-              line: diagnostic.range.start.line,
-              character: diagnostic.range.start.character
-            },
-            end: {
-              line: diagnostic.range.end.line,
-              character: diagnostic.range.end.character
-            }
-          },
-          diagnostic.source,
-          diagnostic.code?.toString()
-        ));
-      });
-    });
-
-    return diagnostics;
-  }
-
-  async getDiagnosticsForFile(filePath: string): Promise<DiagnosticModel[]> {
-    const uri = vscode.Uri.file(filePath);
-    const diagnostics = this.diagnosticCollection.get(uri) || [];
-    
-    return diagnostics.map(diagnostic => new Diagnostic(
-      diagnostic.message,
-      diagnostic.severity,
-      {
-        start: {
-          line: diagnostic.range.start.line,
-          character: diagnostic.range.start.character
-        },
-        end: {
-          line: diagnostic.range.end.line,
-          character: diagnostic.range.end.character
+    async getAll(): Promise<Diagnostic[]> {
+        try {
+            const diagnostics: Diagnostic[] = [];
+            this.collection.forEach((uri, diags) => {
+                diagnostics.push(...diags.map(d => ({
+                    ...d,
+                    id: `${uri.toString()}-${d.range.start.line}-${d.range.start.character}`,
+                    code: typeof d.code === 'object' ? d.code.value : d.code
+                })));
+            });
+            return diagnostics;
+        } catch (error) {
+            throw new DiagnosticError(
+                ErrorCode.EXPORT_ERROR,
+                'Failed to get diagnostics',
+                { error }
+            );
         }
-      },
-      diagnostic.source,
-      diagnostic.code?.toString()
-    ));
-  }
+    }
 
-  async exportDiagnostics(
-    diagnostics: DiagnosticModel[],
-    outputPath: string,
-    format: 'csv' | 'excel'
-  ): Promise<void> {
-    throw new DiagnosticError(
-      'EXPORT_FAILED',
-      'Export functionality not implemented in repository',
-      { format }
-    );
-  }
+    async export(diagnostics: Diagnostic[], options: ExportOptions): Promise<void> {
+        try {
+            const { format, outputPath } = options;
+
+            if (!outputPath) {
+                throw new DiagnosticError(
+                    ErrorCode.VALIDATION_ERROR,
+                    'Output path is required',
+                    { options }
+                );
+            }
+
+            // Implementation will be handled by formatters
+            switch (format) {
+                case 'csv':
+                case 'excel':
+                    // Will be implemented with formatters
+                    break;
+                default:
+                    throw new DiagnosticError(
+                        ErrorCode.EXPORT_ERROR,
+                        `Unsupported export format: ${format}`,
+                        { format }
+                    );
+            }
+        } catch (error) {
+            if (error instanceof DiagnosticError) {
+                throw error;
+            }
+            throw new DiagnosticError(
+                ErrorCode.EXPORT_ERROR,
+                'Failed to export diagnostics',
+                { error }
+            );
+        }
+    }
 }

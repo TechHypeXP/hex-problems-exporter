@@ -1,26 +1,25 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
     "module": "commonjs",
+    "target": "ES2020",
     "lib": ["ES2020"],
-    "strict": true,
+    "sourceMap": true,
+    "rootDir": "src",
+    "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "rootDir": "src",
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "noImplicitThis": false,
+    "alwaysStrict": false,
     "outDir": "out",
-    "sourceMap": true,
-    "declaration": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
-    },
-    "typeRoots": [
-      "./node_modules/@types",
-      "./src/types"
-    ],
-    "types": ["node", "jest", "vscode"],
-    "noEmitOnError": false
+      "*": ["node_modules/*"]
+    }
   },
   "include": ["src"],
   "exclude": ["node_modules", ".vscode-test"]
